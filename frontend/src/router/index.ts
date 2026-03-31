@@ -24,6 +24,12 @@ const router = createRouter({
       component: () => import('../views/DuplicateView.vue'),
       props: (route) => ({ taskId: Number(route.params.taskId) }),
     },
+    {
+      path: '/task/:taskId/ai',
+      name: 'ai',
+      component: () => import('../views/AiView.vue'),
+      props: (route) => ({ taskId: Number(route.params.taskId) }),
+    },
   ],
 })
 

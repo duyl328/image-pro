@@ -107,26 +107,40 @@ class GpxMatch(Base):
 
 class AiLabel(Base):
     __tablename__ = "ai_labels"
+    __table_args__ = (
+        Index("ix_ai_labels_file_task", "file_id", "task_id", unique=True),
+    )
 
     id = Column(Integer, primary_key=True)
     file_id = Column(Integer, ForeignKey("files.id"), nullable=False)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
     user_label = Column(String(32))  # keep / delete / null
-    ai_prediction = Column(String(32))
-    ai_confidence = Column(Float)
-    is_training_data = Column(Boolean, default=False)
     labeled_at = Column(DateTime)
+    ai_prediction = Column(String(32))  # keep / delete / null
+    ai_confidence = Column(Float)
+    ai_raw_score = Column(Float)  # 0.0~1.0 raw keep probability
+    predicted_at = Column(DateTime)
+    model_version = Column(Integer)
+    is_training_data = Column(Boolean, default=False)
+    label_source = Column(String(32))  # manual / correction
 
 
 class AiModelVersion(Base):
     __tablename__ = "ai_model_versions"
 
     id = Column(Integer, primary_key=True)
-    version = Column(Integer)
-    model_path = Column(Text)
+    version = Column(Integer, nullable=False, unique=True)
+    model_path = Column(Text, nullable=False)
     training_samples = Column(Integer)
-    accuracy = Column(Float)
+    keep_samples = Column(Integer)
+    delete_samples = Column(Integer)
+    val_accuracy = Column(Float)
+    val_precision = Column(Float)
+    val_recall = Column(Float)
+    val_f1 = Column(Float)
+    training_time_sec = Column(Float)
     created_at = Column(DateTime, default=datetime.now)
+    is_current = Column(Boolean, default=False)
 
 
 class OperationLog(Base):

@@ -30,7 +30,7 @@ async def start_scan(task_id: int, db: AsyncSession = Depends(get_db)):
 
     # Run scan in background
     async def _run():
-        async with (await _get_session()) as session:
+        async with _get_session() as session:
             t = await session.get(Task, task_id)
             await scan_folder(session, t)
             # Generate thumbnails

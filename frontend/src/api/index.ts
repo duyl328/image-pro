@@ -55,6 +55,43 @@ export const getOriginalUrl = (fileId: number) =>
 export const listLogs = (params?: Record<string, any>) =>
   api.get('/logs', { params })
 
+// ── AI ─────────────────────────────────────────────────────────────────────
+export const startExtract = (taskId: number) =>
+  api.post(`/tasks/${taskId}/ai/extract`)
+
+export const getExtractStatus = (taskId: number) =>
+  api.get(`/tasks/${taskId}/ai/extract/status`)
+
+export const labelFile = (fileId: number, label: string) =>
+  api.put(`/files/${fileId}/ai/label`, { label })
+
+export const batchLabel = (taskId: number, fileIds: number[], label: string) =>
+  api.put(`/tasks/${taskId}/ai/labels/batch`, { file_ids: fileIds, label })
+
+export const getLabelStats = () =>
+  api.get('/ai/labels/stats')
+
+export const startTraining = () =>
+  api.post('/ai/train')
+
+export const getTrainStatus = () =>
+  api.get('/ai/train/status')
+
+export const startPredict = (taskId: number) =>
+  api.post(`/tasks/${taskId}/ai/predict`)
+
+export const getPredictions = (taskId: number, params?: Record<string, any>) =>
+  api.get(`/tasks/${taskId}/ai/predictions`, { params })
+
+export const listModels = () =>
+  api.get('/ai/models')
+
+export const rollbackModel = (version: number) =>
+  api.post(`/ai/models/${version}/rollback`)
+
+export const executeAiDelete = (taskId: number) =>
+  api.post(`/tasks/${taskId}/ai/execute-delete`)
+
 // ── WebSocket ──────────────────────────────────────────────────────────────
 export function connectTaskWs(taskId: number, onMessage: (event: string, data: any) => void) {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

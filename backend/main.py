@@ -40,12 +40,14 @@ from api.scan import router as scan_router
 from api.duplicates import router as duplicates_router
 from api.files import router as files_router
 from api.logs import router as logs_router
+from api.ai import router as ai_router
 
 app.include_router(tasks_router)
 app.include_router(scan_router)
 app.include_router(duplicates_router)
 app.include_router(files_router)
 app.include_router(logs_router)
+app.include_router(ai_router)
 
 
 # ── WebSocket ───────────────────────────────────────────────────────────────
