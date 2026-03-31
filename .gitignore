@@ -1,0 +1,34 @@
+# OS and editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local agent config
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Logs
+*.log
+
+# Local env files
+.env
+.env.*
+*.local
+
+# Generated app data
+data/image_pro.db
+data/thumbnails/
+data/models/
