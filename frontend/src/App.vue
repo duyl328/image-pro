@@ -1,6 +1,7 @@
 <template>
   <n-config-provider :theme="darkTheme" :locale="zhCN" :date-locale="dateZhCN">
     <n-message-provider>
+      <n-dialog-provider>
       <n-layout has-sider style="height: 100vh">
         <!-- Sidebar: only show when inside a task -->
         <n-layout-sider
@@ -26,6 +27,7 @@
           </n-layout-content>
         </n-layout>
       </n-layout>
+      </n-dialog-provider>
     </n-message-provider>
   </n-config-provider>
 </template>
