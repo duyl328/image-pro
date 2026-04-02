@@ -44,6 +44,22 @@ export const setMemberAction = (taskId: number, groupId: number, memberId: numbe
 export const executeDeletions = (taskId: number) =>
   api.post(`/tasks/${taskId}/duplicates/execute`)
 
+// ── EXIF ──────────────────────────────────────────────────────────────────
+export const startExifAnalyze = (taskId: number) =>
+  api.post(`/tasks/${taskId}/exif/analyze`)
+
+export const listExifFiles = (taskId: number, params?: Record<string, any>) =>
+  api.get(`/tasks/${taskId}/exif/files`, { params })
+
+export const setFileExifTime = (fileId: number, newTime: string) =>
+  api.put(`/files/${fileId}/exif/time`, { new_time: newTime })
+
+export const batchOffsetExifTime = (taskId: number, fileIds: number[], offsetSeconds: number) =>
+  api.post(`/tasks/${taskId}/exif/batch-offset`, {
+    file_ids: fileIds,
+    offset_seconds: offsetSeconds,
+  })
+
 // ── Files ──────────────────────────────────────────────────────────────────
 export const getThumbnailUrl = (fileId: number) =>
   `/api/files/${fileId}/thumbnail`

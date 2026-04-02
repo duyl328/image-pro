@@ -30,6 +30,12 @@ const router = createRouter({
       component: () => import('../views/AiView.vue'),
       props: (route) => ({ taskId: Number(route.params.taskId) }),
     },
+    {
+      path: '/task/:taskId/exif',
+      name: 'exif',
+      component: () => import('../views/ExifView.vue'),
+      props: (route) => ({ taskId: Number(route.params.taskId) }),
+    },
   ],
 })
 

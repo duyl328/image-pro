@@ -93,13 +93,33 @@ def _load_clip():
         # Load weights from local file
         local_model_file = Path(__file__).parent.parent / "model" / "CLIP-ViT-L-14-laion2B-s32B-b82K" / "open_clip_pytorch_model.bin"
         print(f"[AI Service] Checking for weights at: {local_model_file}")
-        if local_model_file.exists():
-            print(f"[AI Service] Loading weights...")
-            checkpoint = torch.load(local_model_file, map_location=_clip_device)
-            model.load_state_dict(checkpoint)
-            print(f"[AI Service] Weights loaded successfully")
-        else:
-            print(f"[AI Service] WARNING: Local model file not found")
+        if not local_model_file.exists():
+            error_msg = f"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  CLIP 模型文件未找到                                                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+请手动下载模型文件并放置到以下位置：
+
+  路径: {local_model_file.absolute()}
+
+下载地址:
+  https://huggingface.co/laion/CLIP-ViT-L-14-laion2B-s32B-b82K/resolve/main/open_clip_pytorch_model.bin
+
+或使用命令下载:
+  mkdir -p {local_model_file.parent}
+  wget -O {local_model_file} https://huggingface.co/laion/CLIP-ViT-L-14-laion2B-s32B-b82K/resolve/main/open_clip_pytorch_model.bin
+
+文件大小: 约 1.7 GB
+特征维度: 768 维
+"""
+            print(error_msg)
+            raise FileNotFoundError(error_msg)
+
+        print(f"[AI Service] Loading weights...")
+        checkpoint = torch.load(local_model_file, map_location=_clip_device)
+        model.load_state_dict(checkpoint)
+        print(f"[AI Service] Weights loaded successfully")
 
         model.eval()
         _clip_model = model

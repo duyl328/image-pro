@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/tasks/{task_id}/duplicates", tags=["duplicates"]
 @router.post("/detect")
 async def start_detection(
     task_id: int,
-    similarity_level: str = Query("standard", regex="^(loose|standard|strict)$"),
+    similarity_level: str = Query("standard", pattern="^(loose|standard|strict)$"),
     db: AsyncSession = Depends(get_db),
 ):
     task = await db.get(Task, task_id)

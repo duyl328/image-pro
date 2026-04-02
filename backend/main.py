@@ -19,6 +19,37 @@ from services import ws_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Check CLIP model file on startup
+    from pathlib import Path
+    model_file = Path(__file__).parent / "model" / "CLIP-ViT-L-14-laion2B-s32B-b82K" / "open_clip_pytorch_model.bin"
+
+    if not model_file.exists():
+        error_msg = f"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ❌ 启动失败：CLIP 模型文件未找到                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+AI 筛图功能需要 CLIP 模型文件才能运行。
+
+请手动下载模型文件并放置到以下位置：
+  {model_file.absolute()}
+
+下载地址：
+  https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin
+
+或使用命令下载：
+  mkdir -p "{model_file.parent}"
+  wget -O "{model_file}" https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin
+
+文件大小：约 2.5 GB
+模型：ViT-H/14 (1024维特征)
+
+下载完成后重新启动服务。
+"""
+        print(error_msg)
+        raise FileNotFoundError("CLIP model file not found. Please download it first.")
+
+    print(f"✓ CLIP model file found: {model_file}")
     await init_db()
     yield
 
@@ -41,6 +72,7 @@ from api.duplicates import router as duplicates_router
 from api.files import router as files_router
 from api.logs import router as logs_router
 from api.ai import router as ai_router
+from api.exif import router as exif_router
 
 app.include_router(tasks_router)
 app.include_router(scan_router)
@@ -48,6 +80,7 @@ app.include_router(duplicates_router)
 app.include_router(files_router)
 app.include_router(logs_router)
 app.include_router(ai_router)
+app.include_router(exif_router)
 
 
 # ── WebSocket ───────────────────────────────────────────────────────────────
