@@ -36,6 +36,12 @@ const router = createRouter({
       component: () => import('../views/ExifView.vue'),
       props: (route) => ({ taskId: Number(route.params.taskId) }),
     },
+    {
+      path: '/task/:taskId/gpx',
+      name: 'gpx',
+      component: () => import('../views/GpxView.vue'),
+      props: (route) => ({ taskId: Number(route.params.taskId) }),
+    },
   ],
 })
 

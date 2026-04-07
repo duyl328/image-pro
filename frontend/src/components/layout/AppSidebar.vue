@@ -37,7 +37,7 @@ const menuOptions = computed(() => [
   { label: '扫描概览', key: 'scan', icon: renderIcon(ScanOutline) },
   { label: '查重检测', key: 'duplicates', icon: renderIcon(CopyOutline) },
   { label: '时间/EXIF', key: 'exif', icon: renderIcon(TimeOutline) },
-  { label: 'GPS 匹配', key: 'gpx', icon: renderIcon(LocationOutline), disabled: true },
+  { label: 'GPS 匹配', key: 'gpx', icon: renderIcon(LocationOutline) },
   { label: 'AI 筛图', key: 'ai', icon: renderIcon(SparklesOutline) },
   { label: '操作日志', key: 'logs', icon: renderIcon(ListOutline), disabled: true },
 ])

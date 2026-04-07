@@ -60,6 +60,22 @@ export const batchOffsetExifTime = (taskId: number, fileIds: number[], offsetSec
     offset_seconds: offsetSeconds,
   })
 
+// ── GPX ───────────────────────────────────────────────────────────────────
+export const startGpxMatch = (taskId: number, gpxPaths: string[]) =>
+  api.post(`/tasks/${taskId}/gpx/match`, { gpx_paths: gpxPaths })
+
+export const getGpxResults = (taskId: number, params?: Record<string, any>) =>
+  api.get(`/tasks/${taskId}/gpx/results`, { params })
+
+export const executeGpsWrite = (taskId: number, fileIds: number[], mode: string) =>
+  api.post(`/tasks/${taskId}/gpx/execute`, { file_ids: fileIds, mode })
+
+export const clearGpxMatches = (taskId: number) =>
+  api.delete(`/tasks/${taskId}/gpx/matches`)
+
+export const getGpxStats = (taskId: number) =>
+  api.get(`/tasks/${taskId}/gpx/stats`)
+
 // ── Files ──────────────────────────────────────────────────────────────────
 export const getThumbnailUrl = (fileId: number) =>
   `/api/files/${fileId}/thumbnail`
