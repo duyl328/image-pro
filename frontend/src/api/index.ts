@@ -73,6 +73,9 @@ export const executeGpsWrite = (taskId: number, fileIds: number[], mode: string)
 export const clearGpxMatches = (taskId: number) =>
   api.delete(`/tasks/${taskId}/gpx/matches`)
 
+export const getGpxTrack = (taskId: number) =>
+  api.get(`/tasks/${taskId}/gpx/track`)
+
 export const getGpxStats = (taskId: number) =>
   api.get(`/tasks/${taskId}/gpx/stats`)
 

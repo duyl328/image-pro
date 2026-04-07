@@ -208,6 +208,85 @@ async def clear_gpx_matches(
         raise HTTPException(500, str(e))
 
 
+# ── 获取轨迹图数据 ───────────────────────────────────────────────────────────
+
+@router.get("/api/tasks/{task_id}/gpx/track")
+async def get_gpx_track(
+    task_id: int,
+    max_points: int = Query(2000, ge=100, le=10000),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    返回轨迹线坐标（降采样）和照片匹配点，供前端 SVG 渲染。
+    轨迹点来自第一个 gpx_file_path（从 gpx_matches 取样），
+    照片点来自 gpx_matches 表中所有 match_quality != 'no_match' 的记录。
+    """
+    task = await db.get(Task, task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+
+    # 取所有匹配记录（用于获取 gpx_file_path）
+    match_result = await db.execute(
+        select(GpxMatch, File)
+        .join(File, GpxMatch.file_id == File.id)
+        .where(GpxMatch.task_id == task_id)
+        .order_by(File.best_time)
+    )
+    rows = match_result.all()
+
+    if not rows:
+        return {"track": [], "photos": []}
+
+    # 照片匹配点
+    def fmt_dt(dt):
+        if not dt:
+            return None
+        from datetime import timezone, timedelta
+        shifted = dt.replace(tzinfo=timezone.utc) + timedelta(hours=8)
+        return shifted.strftime("%Y-%m-%d %H:%M:%S")
+
+    photos = [
+        {
+            "file_id": m.file_id,
+            "file_name": f.file_name,
+            "lat": m.matched_lat,
+            "lng": m.matched_lng,
+            "time_offset_sec": m.time_offset_sec,
+            "match_quality": m.match_quality,
+            "best_time": fmt_dt(f.best_time),
+        }
+        for m, f in rows
+        if m.match_quality != "no_match"
+    ]
+
+    # 解析轨迹线（在 executor 中读取 GPX 文件）
+    gpx_path = rows[0][0].gpx_file_path
+    track_points = []
+    if gpx_path:
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            raw_points = await loop.run_in_executor(
+                None, gpx_service.parse_gpx_file, gpx_path
+            )
+            # 降采样：均匀取样到 max_points
+            total = len(raw_points)
+            if total <= max_points:
+                track_points = [[p[1], p[2]] for p in raw_points]
+            else:
+                step = total / max_points
+                track_points = [
+                    [raw_points[int(i * step)][1], raw_points[int(i * step)][2]]
+                    for i in range(max_points)
+                ]
+                # 确保末尾点包含
+                track_points.append([raw_points[-1][1], raw_points[-1][2]])
+        except Exception:
+            track_points = []
+
+    return {"track": track_points, "photos": photos}
+
+
 # ── 获取匹配统计 ─────────────────────────────────────────────────────────────
 
 @router.get("/api/tasks/{task_id}/gpx/stats")

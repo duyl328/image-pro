@@ -61,6 +61,15 @@
       </n-gi>
     </n-grid>
 
+    <!-- 轨迹图 -->
+    <n-collapse v-if="hasResult && !matching" style="margin-bottom: 16px">
+      <n-collapse-item title="轨迹图" name="map">
+        <n-spin :show="trackLoading">
+          <gpx-track-map :track="trackData" :photos="photoPoints" :height="420" />
+        </n-spin>
+      </n-collapse-item>
+    </n-collapse>
+
     <!-- 筛选 + 批量写入工具栏 -->
     <div v-if="hasResult && !matching" style="margin-bottom: 16px">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px">
@@ -116,11 +125,13 @@ import {
 import {
   startGpxMatch,
   getGpxResults,
+  getGpxTrack,
   executeGpsWrite,
   clearGpxMatches,
   connectTaskWs,
 } from '../api/index'
 import { useTaskStore } from '../stores/task'
+import GpxTrackMap from '../components/gpx/GpxTrackMap.vue'
 
 const props = defineProps<{ taskId: number }>()
 const message = useMessage()
@@ -156,6 +167,11 @@ const stats = ref({ total: 0, good: 0, warning: 0, no_match: 0 })
 const pagination = ref({ page: 1, pageSize: 50, itemCount: 0 })
 const gpxPaths = ref<string[]>([''])
 const writeMode = ref<'fill_only' | 'overwrite'>('fill_only')
+
+// 轨迹图数据
+const trackLoading = ref(false)
+const trackData = ref<[number, number][]>([])
+const photoPoints = ref<any[]>([])
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 function utcToLocal(utcStr: string | null): string {
@@ -284,6 +300,19 @@ async function loadResults() {
   }
 }
 
+async function loadTrack() {
+  trackLoading.value = true
+  try {
+    const res = await getGpxTrack(props.taskId)
+    trackData.value = res.data.track
+    photoPoints.value = res.data.photos
+  } catch {
+    // 静默
+  } finally {
+    trackLoading.value = false
+  }
+}
+
 function handleFilterChange() {
   pagination.value.page = 1
   checkedRowKeys.value = []
@@ -322,7 +351,8 @@ function handleMatch() {
     } else if (event === 'gpx_complete') {
       matching.value = false
       ws.close()
-      loadResults()
+      await loadResults()
+      await loadTrack()
       message.success(
         `匹配完成：良好 ${data.matched_good}，偏差较大 ${data.matched_warning}，无匹配 ${data.no_match}`
       )
@@ -384,5 +414,6 @@ function handleClear() {
 onMounted(async () => {
   await taskStore.fetchTask(props.taskId)
   await loadResults()
+  if (hasResult.value) await loadTrack()
 })
 </script>
