@@ -74,6 +74,14 @@ async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Task not found")
     await db.delete(task)
     await db.commit()
+
+    # Clean up thumbnail directory for this task
+    import shutil
+    from config import THUMBNAIL_DIR
+    thumb_dir = THUMBNAIL_DIR / str(task_id)
+    if thumb_dir.exists():
+        shutil.rmtree(thumb_dir, ignore_errors=True)
+
     return {"ok": True}
 
 

@@ -28,6 +28,13 @@ async def start_scan(task_id: int, db: AsyncSession = Depends(get_db)):
         await db.delete(f)
     await db.flush()
 
+    # Clear old thumbnails on re-scan
+    from config import THUMBNAIL_DIR
+    import shutil
+    thumb_dir = THUMBNAIL_DIR / str(task_id)
+    if thumb_dir.exists():
+        shutil.rmtree(thumb_dir, ignore_errors=True)
+
     # Run scan in background
     async def _run():
         async with _get_session() as session:

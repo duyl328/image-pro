@@ -23,9 +23,6 @@ def _generate_thumbnail(file_path: str, task_id: int, file_id: int) -> str | Non
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{file_id}.jpg"
 
-        if out_path.exists():
-            return str(out_path)
-
         img = Image.open(file_path)
         img.thumbnail(THUMBNAIL_SIZE, Image.LANCZOS)
 
@@ -47,9 +44,6 @@ def _generate_video_thumbnail(file_path: str, task_id: int, file_id: int) -> str
         out_dir = THUMBNAIL_DIR / str(task_id)
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{file_id}.jpg"
-
-        if out_path.exists():
-            return str(out_path)
 
         cap = cv2.VideoCapture(file_path)
         ret, frame = cap.read()
