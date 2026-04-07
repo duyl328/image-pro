@@ -84,12 +84,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, h } from 'vue'
-import { useMessage, NTag, NText } from 'naive-ui'
+import { useMessage, useDialog, NTag, NText, NButton } from 'naive-ui'
 import { useTaskStore } from '../stores/task'
-import { startScan, getScanSummary, listFiles, connectTaskWs } from '../api'
+import { startScan, getScanSummary, listFiles, deleteByExtension, connectTaskWs } from '../api'
 
 const props = defineProps<{ taskId: number }>()
 const message = useMessage()
+const dialog = useDialog()
 const taskStore = useTaskStore()
 
 const scanning = ref(false)
@@ -131,6 +132,18 @@ const extColumns = [
     key: 'percent',
     width: 100,
     render: (row: any) => `${((row.count / (summary.value.total || 1)) * 100).toFixed(1)}%`,
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 100,
+    render: (row: any) =>
+      h(NButton, {
+        size: 'tiny',
+        type: 'error',
+        tertiary: true,
+        onClick: () => handleDeleteByExtension(row.ext, row.count),
+      }, () => '删除全部'),
   },
 ]
 
@@ -232,6 +245,25 @@ async function loadFiles() {
     filePagination.value.itemCount = res.data.total
   } catch { /* ignore */ }
   filesLoading.value = false
+}
+
+function handleDeleteByExtension(ext: string, count: number) {
+  dialog.warning({
+    title: '确认删除',
+    content: `即将删除所有 ${ext} 文件（共 ${count} 个），移动到系统回收站。确认继续？`,
+    positiveText: '确认删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const res = await deleteByExtension(props.taskId, ext)
+        message.success(`已删除 ${res.data.deleted} 个 ${ext} 文件，释放 ${(res.data.freed_bytes / 1024 / 1024).toFixed(1)} MB`)
+        await loadSummary()
+        await loadFiles()
+      } catch (e: any) {
+        message.error(e.response?.data?.detail || '删除失败')
+      }
+    }
+  })
 }
 
 function handlePageChange(page: number) {

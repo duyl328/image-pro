@@ -1,5 +1,6 @@
 """Task management API."""
 
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -74,3 +75,22 @@ async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
     await db.delete(task)
     await db.commit()
     return {"ok": True}
+
+
+@router.post("/pick-folder")
+async def pick_folder():
+    """Open a native folder picker dialog and return the selected path."""
+    def _pick():
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        folder = filedialog.askdirectory(title="选择文件夹")
+        root.destroy()
+        return folder
+
+    folder = await asyncio.to_thread(_pick)
+    if not folder:
+        raise HTTPException(400, "未选择文件夹")
+    return {"folder_path": folder}

@@ -283,12 +283,14 @@ async def get_label_stats(session: AsyncSession) -> dict:
     keep = row.keep
     delete = row.delete_
     print(f"[AI Service] Label stats query result: total={total}, keep={keep}, delete={delete}")
+    model_exists = (MODEL_CURRENT_DIR / "classifier.pt").exists()
     return {
         "total": total,
         "keep": keep,
         "delete": delete,
         "min_required": AI_MIN_SAMPLES,
         "ready": total >= AI_MIN_SAMPLES and keep > 0 and delete > 0,
+        "model_exists": model_exists,
     }
 
 

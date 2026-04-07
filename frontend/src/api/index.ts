@@ -18,6 +18,9 @@ export const getTask = (taskId: number) =>
 export const deleteTask = (taskId: number) =>
   api.delete(`/tasks/${taskId}`)
 
+export const pickFolder = () =>
+  api.post('/tasks/pick-folder')
+
 // ── Scan ───────────────────────────────────────────────────────────────────
 export const startScan = (taskId: number) =>
   api.post(`/tasks/${taskId}/scan`)
@@ -85,6 +88,9 @@ export const getThumbnailUrl = (fileId: number) =>
 
 export const getOriginalUrl = (fileId: number) =>
   `/api/files/${fileId}/original`
+
+export const deleteByExtension = (taskId: number, extension: string) =>
+  api.post(`/files/delete-by-extension/${taskId}`, { extension })
 
 // ── Logs ───────────────────────────────────────────────────────────────────
 export const listLogs = (params?: Record<string, any>) =>

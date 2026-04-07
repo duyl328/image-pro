@@ -165,7 +165,7 @@ async def get_predictions(
     confidence_min: float = Query(None, ge=0, le=1),
     confidence_max: float = Query(None, ge=0, le=1),
     label_status: str = Query(None),  # labeled / unlabeled / corrected / all
-    sort_by: str = Query("confidence"),  # confidence / filename / size / score
+    sort_by: str = Query("confidence"),  # confidence / filename / size / score / time
     sort_order: str = Query("asc"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -217,6 +217,8 @@ async def get_predictions(
         sort_col = File.file_size
     elif sort_by == "score":
         sort_col = AiLabel.ai_raw_score
+    elif sort_by == "time":
+        sort_col = File.file_modified
     else:
         sort_col = AiLabel.ai_confidence
 
@@ -292,12 +294,14 @@ async def execute_delete(task_id: int, db: AsyncSession = Depends(get_db)):
     deleted = 0
     freed = 0
     errors = []
+    deleted_file_ids = []
 
     for file_id, file_path, file_size in rows:
         try:
             send2trash(file_path)
             deleted += 1
             freed += file_size or 0
+            deleted_file_ids.append(file_id)
 
             db.add(OperationLog(
                 task_id=task_id,
@@ -312,6 +316,15 @@ async def execute_delete(task_id: int, db: AsyncSession = Depends(get_db)):
             await ws_manager.broadcast(task_id, "delete_progress", {
                 "progress": deleted, "total": len(rows),
             })
+
+    # Remove DB records for deleted files
+    if deleted_file_ids:
+        await db.execute(
+            AiLabel.__table__.delete().where(AiLabel.file_id.in_(deleted_file_ids))
+        )
+        await db.execute(
+            File.__table__.delete().where(File.id.in_(deleted_file_ids))
+        )
 
     await db.commit()
 

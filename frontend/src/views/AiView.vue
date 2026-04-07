@@ -13,6 +13,14 @@
       </n-space>
     </div>
 
+    <!-- Scan progress -->
+    <n-card v-if="scanning" title="扫描文件中" style="margin-bottom: 16px">
+      <n-progress type="line" :percentage="scanTotal > 0 ? Math.round((scanCurrent / scanTotal) * 100) : 0" :processing="true" indicator-placement="inside" />
+      <n-text depth="3" style="margin-top: 8px; display: block">
+        {{ scanCurrent }} / {{ scanTotal }} 文件
+      </n-text>
+    </n-card>
+
     <!-- Extract progress -->
     <n-card v-if="extracting" title="特征提取中" style="margin-bottom: 16px">
       <n-progress type="line" :percentage="extractProgress" :processing="true" indicator-placement="inside" />
@@ -52,32 +60,14 @@
     <!-- Results -->
     <template v-if="hasResults && !extracting && !training">
       <!-- Stats -->
-      <n-grid :x-gap="16" :y-gap="16" :cols="4" style="margin-bottom: 24px">
-        <n-gi>
-          <n-card>
-            <n-statistic label="全部图片" :value="resultStats.total" tabular-nums />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card>
-            <n-statistic label="建议保留" :value="resultStats.keep" tabular-nums>
-              <template #prefix><n-text type="success">🟢</n-text></template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card>
-            <n-statistic label="建议删除" :value="resultStats.delete" tabular-nums>
-              <template #prefix><n-text type="error">🔴</n-text></template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card>
-            <n-statistic label="已修正" :value="resultStats.corrected" tabular-nums />
-          </n-card>
-        </n-gi>
-      </n-grid>
+      <n-card size="small" style="margin-bottom: 12px; padding: 0">
+        <n-space align="center" :size="24">
+          <n-text depth="3">全部图片 <n-text strong>{{ resultStats.total }}</n-text></n-text>
+          <n-text depth="3">🟢 保留 <n-text type="success" strong>{{ resultStats.keep }}</n-text></n-text>
+          <n-text depth="3">🔴 删除 <n-text type="error" strong>{{ resultStats.delete }}</n-text></n-text>
+          <n-text depth="3">已修正 <n-text strong>{{ resultStats.corrected }}</n-text></n-text>
+        </n-space>
+      </n-card>
 
       <!-- Filters and actions -->
       <n-card style="margin-bottom: 16px">
@@ -103,6 +93,13 @@
             style="width: 150px"
             size="small"
           />
+          <n-divider vertical />
+          <n-select
+            v-model:value="sortBy"
+            :options="sortOptions"
+            style="width: 130px"
+            size="small"
+          />
           <n-button @click="loadPredictions" size="small">应用筛选</n-button>
           <n-divider vertical />
           <n-button
@@ -117,18 +114,20 @@
       </n-card>
 
       <!-- Main content: Grid + Preview -->
-      <n-grid :x-gap="16" :cols="3" style="margin-bottom: 16px">
+      <n-grid :x-gap="16" :cols="4" style="margin-bottom: 16px">
         <n-gi :span="1">
           <n-card title="图片列表" size="small">
             <n-virtual-list
-              :item-size="138"
+              ref="virtualListRef"
+              :item-size="108"
               :items="predictionRows"
-              style="max-height: 800px"
+              key-field="key"
+              style="max-height: calc(100vh - 240px)"
             >
               <template #default="{ item: row }">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px">
+                <div style="display: flex; gap: 4px; margin-bottom: 4px">
                   <div
-                    v-for="(item, colIdx) in row"
+                    v-for="item in row.items"
                     :key="item.file_id"
                     :style="{
                       flex: 1,
@@ -141,7 +140,7 @@
                   >
                     <img
                       :src="getThumbnailUrl(item.file_id)"
-                      style="width: 100%; height: 120px; object-fit: cover; display: block"
+                      style="width: 100%; height: 90px; object-fit: cover; display: block"
                     />
                   </div>
                 </div>
@@ -149,41 +148,34 @@
             </n-virtual-list>
           </n-card>
         </n-gi>
-        <n-gi :span="2">
+        <n-gi :span="3">
           <n-card title="预览" size="small">
             <div v-if="currentPreview" style="text-align: center">
               <img
-                :src="currentPreview.thumbnail"
-                style="max-width: 100%; max-height: 850px; object-fit: contain; cursor: pointer"
+                :src="getOriginalUrl(currentPreview.file_id)"
+                style="display: block; width: 100%; height: auto; max-height: calc(100vh - 260px); object-fit: contain; cursor: pointer; margin: 0 auto"
                 @click="showFullImage"
               />
-              <n-divider />
-              <n-descriptions :column="2" size="small" label-placement="left">
-                <n-descriptions-item label="文件名" :span="2">{{ currentPreview.file_name }}</n-descriptions-item>
-                <n-descriptions-item label="AI 建议">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 12px; flex-wrap: nowrap">
+                <n-text depth="3" style="font-size: 12px; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
+                  {{ currentPreview.file_name }}
+                </n-text>
+                <n-space align="center" :size="12" :wrap="false" style="flex-shrink: 0">
                   <n-tag :type="currentPreview.ai_prediction === 'keep' ? 'success' : 'error'" size="small">
-                    {{ currentPreview.ai_prediction === 'keep' ? '保留' : '删除' }}
+                    AI: {{ currentPreview.ai_prediction === 'keep' ? '保留' : '删除' }}
                   </n-tag>
-                </n-descriptions-item>
-                <n-descriptions-item label="置信度">
-                  {{ (currentPreview.ai_confidence * 100).toFixed(1) }}%
-                </n-descriptions-item>
-                <n-descriptions-item label="用户标记" :span="2">
+                  <n-text depth="3" style="font-size: 12px">{{ (currentPreview.ai_confidence * 100).toFixed(0) }}%</n-text>
                   <n-tag v-if="currentPreview.user_label" :type="currentPreview.user_label === 'keep' ? 'success' : 'error'" size="small">
-                    {{ currentPreview.user_label === 'keep' ? '保留' : '删除' }}
+                    标记: {{ currentPreview.user_label === 'keep' ? '保留' : '删除' }}
                   </n-tag>
-                  <n-text v-else depth="3">未标记</n-text>
-                </n-descriptions-item>
-              </n-descriptions>
-              <n-divider />
-              <n-space justify="center">
-                <n-button type="success" @click="handleLabelAndNext(currentPreview.file_id, 'keep')">
-                  保留 (→ / K)
-                </n-button>
-                <n-button type="error" @click="handleLabelAndNext(currentPreview.file_id, 'delete')">
-                  删除 (Del / D)
-                </n-button>
-              </n-space>
+                  <n-button type="success" size="small" @click="handleLabelAndNext(currentPreview.file_id, 'keep')">
+                    保留 (K)
+                  </n-button>
+                  <n-button type="error" size="small" @click="handleLabelAndNext(currentPreview.file_id, 'delete')">
+                    删除 (D)
+                  </n-button>
+                </n-space>
+              </div>
             </div>
             <n-empty v-else description="点击左侧缩略图查看预览" />
           </n-card>
@@ -191,7 +183,7 @@
       </n-grid>
     </template>
 
-    <n-empty v-if="!hasResults && !extracting && !needsColdStart && !training" description="点击「生成建议」开始 AI 筛图" />
+    <n-empty v-if="!hasResults && !scanning && !extracting && !needsColdStart && !training" description="点击「生成建议」开始 AI 筛图" />
 
     <!-- Model management dialog -->
     <n-modal v-model:show="showModelDialog" preset="card" title="模型管理" style="width: 700px">
@@ -201,13 +193,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h, nextTick } from 'vue'
 import { useMessage, useDialog, NTag, NButton } from 'naive-ui'
 import { useTaskStore } from '../stores/task'
 import {
+  startScan,
   startExtract, getExtractStatus, getLabelStats, startTraining, getTrainStatus,
   startPredict, getPredictions, listModels, rollbackModel, executeAiDelete,
-  batchLabel, getThumbnailUrl, connectTaskWs
+  batchLabel, getThumbnailUrl, getOriginalUrl, connectTaskWs
 } from '../api'
 
 const props = defineProps<{ taskId: number }>()
@@ -216,6 +209,9 @@ const dialog = useDialog()
 const taskStore = useTaskStore()
 
 // State
+const scanning = ref(false)
+const scanTotal = ref(0)
+const scanCurrent = ref(0)
 const extracting = ref(false)
 const extractTotal = ref(0)
 const extractCurrent = ref(0)
@@ -223,7 +219,7 @@ const training = ref(false)
 const predicting = ref(false)
 const loading = ref(false)
 
-const labelStats = ref({ total: 0, keep: 0, delete: 0, min_required: 200, ready: false })
+const labelStats = ref({ total: 0, keep: 0, delete: 0, min_required: 200, ready: false, model_exists: false })
 const trainStatus = ref<any>({ status: 'idle', epoch: 0, max_epochs: 50, val_accuracy: 0, best_accuracy: 0 })
 const predictions = ref<any[]>([])
 const selectedIds = ref<number[]>([])
@@ -231,6 +227,7 @@ const currentPreview = ref<any>(null)
 const currentIndex = ref(0)
 const models = ref<any[]>([])
 const showModelDialog = ref(false)
+const virtualListRef = ref<any>(null)
 
 const pagination = ref({ page: 1, pageSize: 50, itemCount: 0 })
 const filters = ref({
@@ -238,6 +235,7 @@ const filters = ref({
   confidence: null as string | null,
   labelStatus: null as string | null,
 })
+const sortBy = ref('filename')
 
 const resultStats = ref({ total: 0, keep: 0, delete: 0, corrected: 0 })
 
@@ -260,16 +258,17 @@ const trainProgress = computed(() =>
     : 0
 )
 
-const needsColdStart = computed(() => !labelStats.value.ready)
-const showTrainButton = computed(() => labelStats.value.ready && !training.value)
-const showPredictButton = computed(() => labelStats.value.ready && !predicting.value)
+const needsColdStart = computed(() => !labelStats.value.ready && !labelStats.value.model_exists)
+const showTrainButton = computed(() => labelStats.value.ready && !training.value && !scanning.value)
+const showPredictButton = computed(() => (labelStats.value.ready || labelStats.value.model_exists) && !predicting.value && !scanning.value)
 const hasResults = computed(() => predictions.value.length > 0)
 
 // Group predictions into rows of 3
 const predictionRows = computed(() => {
   const rows = []
   for (let i = 0; i < predictions.value.length; i += 3) {
-    rows.push(predictions.value.slice(i, i + 3))
+    const items = predictions.value.slice(i, i + 3)
+    rows.push({ key: items[0].file_id, items })
   }
   return rows
 })
@@ -296,6 +295,13 @@ const labelStatusOptions = [
   { label: '已修正', value: 'corrected' },
 ]
 
+const sortOptions = [
+  { label: '按文件名', value: 'filename' },
+  { label: '按修改时间', value: 'time' },
+  { label: '按置信度', value: 'confidence' },
+  { label: '按文件大小', value: 'size' },
+]
+
 const modelColumns = [
   { title: '版本', key: 'version', width: 80 },
   { title: '样本数', key: 'training_samples', width: 100 },
@@ -320,11 +326,21 @@ const modelColumns = [
 // Lifecycle
 onMounted(async () => {
   await taskStore.fetchTask(props.taskId)
-  await checkExtractStatus()
-  await loadLabelStats()
-  await loadPredictions()
   connectWebSocket()
   window.addEventListener('keydown', handleKeydown)
+
+  if (!taskStore.currentTask || taskStore.currentTask.image_count === 0) {
+    // Auto-scan first, then extract will be triggered on scan_complete
+    await handleAutoScan()
+  } else {
+    await checkExtractStatus()
+    await loadLabelStats()
+    await loadPredictions()
+    // If model exists and no predictions loaded, auto-predict
+    if (labelStats.value.model_exists && predictions.value.length === 0) {
+      await handlePredict()
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -373,7 +389,14 @@ function selectCurrent() {
   const item = predictions.value[currentIndex.value]
   if (item) {
     currentPreview.value = { ...item, thumbnail: getThumbnailUrl(item.file_id) }
+    nextTick(() => scrollToCurrentItem())
   }
+}
+
+function scrollToCurrentItem() {
+  if (!virtualListRef.value) return
+  const rowIndex = Math.floor(currentIndex.value / 3)
+  virtualListRef.value.scrollTo({ index: rowIndex })
 }
 
 function selectItem(idx: number) {
@@ -384,8 +407,9 @@ function selectItem(idx: number) {
 function getBorderColor(item: any) {
   const isCurrent = currentPreview.value?.file_id === item.file_id
   if (isCurrent) return '#2080f0'
-  if (item.user_label === 'keep') return '#18a058'
-  if (item.user_label === 'delete') return '#d03050'
+  const effective = item.user_label ?? item.ai_prediction
+  if (effective === 'keep') return '#18a058'
+  if (effective === 'delete') return '#d03050'
   return '#e0e0e0'
 }
 
@@ -398,13 +422,30 @@ async function handleLabelAndNext(fileId: number, label: string) {
     const idx = predictions.value.findIndex(p => p.file_id === fileId)
     if (idx >= 0) {
       predictions.value[idx].user_label = label
+      predictions.value[idx].is_corrected = (
+        predictions.value[idx].ai_prediction !== null &&
+        label !== predictions.value[idx].ai_prediction
+      )
     }
+    recalculateStats()
     goToNext()
   } catch (e: any) {
     message.error(e.response?.data?.detail || '标记失败')
   }
 }
 
+
+async function handleAutoScan() {
+  scanning.value = true
+  scanCurrent.value = 0
+  scanTotal.value = 0
+  try {
+    await startScan(props.taskId)
+  } catch (e: any) {
+    message.error(e.response?.data?.detail || '自动扫描失败')
+    scanning.value = false
+  }
+}
 
 // Methods
 async function checkExtractStatus() {
@@ -436,6 +477,7 @@ async function handleExtract() {
     if (res.data.total === 0) {
       console.log('[AI] No images to extract')
       extracting.value = false
+      await autoPredict()
     }
   } catch (e: any) {
     console.error('[AI] Extract failed:', e)
@@ -449,6 +491,13 @@ async function loadLabelStats() {
     const res = await getLabelStats()
     labelStats.value = res.data
   } catch { /* ignore */ }
+}
+
+async function autoPredict() {
+  await loadLabelStats()
+  if (labelStats.value.model_exists && predictions.value.length === 0) {
+    await handlePredict()
+  }
 }
 
 async function handleTrain() {
@@ -472,7 +521,6 @@ async function pollTrainStatus() {
         training.value = false
         message.success(`训练完成！准确率: ${(res.data.accuracy * 100).toFixed(1)}%`)
         await loadLabelStats()
-        await handlePredict()
       } else if (res.data.status === 'failed') {
         clearInterval(interval)
         training.value = false
@@ -497,6 +545,18 @@ async function handlePredict() {
   predicting.value = false
 }
 
+function getEffectiveLabel(item: any): string | null {
+  return item.user_label ?? item.ai_prediction ?? null
+}
+
+function recalculateStats() {
+  const items = predictions.value
+  resultStats.value.total = items.length
+  resultStats.value.keep = items.filter(x => getEffectiveLabel(x) === 'keep').length
+  resultStats.value.delete = items.filter(x => getEffectiveLabel(x) === 'delete').length
+  resultStats.value.corrected = items.filter(x => x.is_corrected).length
+}
+
 async function loadPredictions() {
   loading.value = true
   try {
@@ -508,7 +568,7 @@ async function loadPredictions() {
       const params: any = {
         page,
         page_size: pageSize,
-        sort_by: 'confidence',
+        sort_by: sortBy.value,
         sort_order: 'asc',
       }
       if (filters.value.prediction) params.prediction = filters.value.prediction
@@ -534,11 +594,7 @@ async function loadPredictions() {
     predictions.value = allItems
     pagination.value.itemCount = allItems.length
 
-    // Update stats
-    resultStats.value.total = allItems.length
-    resultStats.value.keep = allItems.filter((x: any) => x.ai_prediction === 'keep').length
-    resultStats.value.delete = allItems.filter((x: any) => x.ai_prediction === 'delete').length
-    resultStats.value.corrected = allItems.filter((x: any) => x.is_corrected).length
+    recalculateStats()
 
     // Auto-select first item
     if (predictions.value.length > 0 && !currentPreview.value) {
@@ -570,6 +626,8 @@ async function handleExecuteDelete() {
       try {
         const res = await executeAiDelete(props.taskId)
         message.success(`已删除 ${res.data.deleted} 个文件，释放 ${(res.data.freed_bytes / 1024 / 1024).toFixed(1)} MB`)
+        currentPreview.value = null
+        currentIndex.value = 0
         await loadPredictions()
       } catch (e: any) {
         message.error(e.response?.data?.detail || '删除失败')
@@ -604,13 +662,23 @@ function showFullImage() {
 
 function connectWebSocket() {
   ws = connectTaskWs(props.taskId, (event, data) => {
-    if (event === 'extract_progress') {
+    if (event === 'scan_start') {
+      scanTotal.value = data.total
+    } else if (event === 'scan_progress') {
+      scanCurrent.value = data.current
+    } else if (event === 'scan_complete') {
+      scanning.value = false
+      message.success(`扫描完成: ${data.total} 个文件`)
+      taskStore.fetchTask(props.taskId)
+      checkExtractStatus()
+      loadLabelStats()
+    } else if (event === 'extract_progress') {
       extractCurrent.value = data.progress
       extractTotal.value = data.total
     } else if (event === 'extract_completed') {
       extracting.value = false
       message.success('特征提取完成')
-      loadLabelStats()
+      loadLabelStats().then(() => autoPredict())
     } else if (event === 'extract_failed') {
       extracting.value = false
       message.error('特征提取失败: ' + data.error)
