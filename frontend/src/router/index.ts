@@ -42,6 +42,12 @@ const router = createRouter({
       component: () => import('../views/GpxView.vue'),
       props: (route) => ({ taskId: Number(route.params.taskId) }),
     },
+    {
+      path: '/task/:taskId/empty-folders',
+      name: 'empty-folders',
+      component: () => import('../views/EmptyFoldersView.vue'),
+      props: (route) => ({ taskId: Number(route.params.taskId) }),
+    },
   ],
 })
 

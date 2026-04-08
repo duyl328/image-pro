@@ -137,11 +137,11 @@
                       overflow: 'hidden',
                     }"
                     @click="selectItem(predictions.indexOf(item))"
-                  >
-                    <img
-                      :src="getThumbnailUrl(item.file_id)"
-                      style="width: 100%; height: 90px; object-fit: cover; display: block"
-                    />
+                    >
+                      <img
+                        :src="getThumbnailUrl(item.file_id, imageVersion)"
+                        style="width: 100%; height: 90px; object-fit: cover; display: block"
+                      />
                   </div>
                 </div>
               </template>
@@ -151,8 +151,8 @@
         <n-gi :span="3">
           <n-card title="预览" size="small">
             <div v-if="currentPreview" style="text-align: center">
-              <img
-                :src="getOriginalUrl(currentPreview.file_id)"
+                <img
+                  :src="getPreviewOriginalUrl(currentPreview.file_id)"
                 style="display: block; width: 100%; height: auto; max-height: calc(100vh - 260px); object-fit: contain; cursor: pointer; margin: 0 auto"
                 @click="showFullImage"
               />
@@ -193,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, h, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h, nextTick, watch } from 'vue'
 import { useMessage, useDialog, NTag, NButton } from 'naive-ui'
 import { useTaskStore } from '../stores/task'
 import {
@@ -262,6 +262,7 @@ const needsColdStart = computed(() => !labelStats.value.ready && !labelStats.val
 const showTrainButton = computed(() => labelStats.value.ready && !training.value && !scanning.value)
 const showPredictButton = computed(() => (labelStats.value.ready || labelStats.value.model_exists) && !predicting.value && !scanning.value)
 const hasResults = computed(() => predictions.value.length > 0)
+const imageVersion = computed(() => taskStore.currentTask?.updated_at ?? props.taskId)
 
 // Group predictions into rows of 3
 const predictionRows = computed(() => {
@@ -325,28 +326,23 @@ const modelColumns = [
 
 // Lifecycle
 onMounted(async () => {
-  await taskStore.fetchTask(props.taskId)
-  connectWebSocket()
   window.addEventListener('keydown', handleKeydown)
-
-  if (!taskStore.currentTask || taskStore.currentTask.image_count === 0) {
-    // Auto-scan first, then extract will be triggered on scan_complete
-    await handleAutoScan()
-  } else {
-    await checkExtractStatus()
-    await loadLabelStats()
-    await loadPredictions()
-    // If model exists and no predictions loaded, auto-predict
-    if (labelStats.value.model_exists && predictions.value.length === 0) {
-      await handlePredict()
-    }
-  }
+  await initializeTaskView()
 })
 
 onUnmounted(() => {
   ws?.close()
   window.removeEventListener('keydown', handleKeydown)
 })
+
+watch(
+  () => props.taskId,
+  async (newTaskId, oldTaskId) => {
+    if (newTaskId === oldTaskId) return
+    resetTaskViewState()
+    await initializeTaskView()
+  }
+)
 
 // Keyboard shortcuts
 function handleKeydown(e: KeyboardEvent) {
@@ -388,7 +384,7 @@ function goToPrev() {
 function selectCurrent() {
   const item = predictions.value[currentIndex.value]
   if (item) {
-    currentPreview.value = { ...item, thumbnail: getThumbnailUrl(item.file_id) }
+    currentPreview.value = { ...item, thumbnail: getThumbnailUrl(item.file_id, imageVersion.value) }
     nextTick(() => scrollToCurrentItem())
   }
 }
@@ -411,6 +407,50 @@ function getBorderColor(item: any) {
   if (effective === 'keep') return '#18a058'
   if (effective === 'delete') return '#d03050'
   return '#e0e0e0'
+}
+
+function getPreviewOriginalUrl(fileId: number) {
+  return getOriginalUrl(fileId, imageVersion.value)
+}
+
+function resetTaskViewState() {
+  ws?.close()
+  ws = null
+  scanning.value = false
+  scanTotal.value = 0
+  scanCurrent.value = 0
+  extracting.value = false
+  extractTotal.value = 0
+  extractCurrent.value = 0
+  training.value = false
+  predicting.value = false
+  loading.value = false
+  labelStats.value = { total: 0, keep: 0, delete: 0, min_required: 200, ready: false, model_exists: false }
+  trainStatus.value = { status: 'idle', epoch: 0, max_epochs: 50, val_accuracy: 0, best_accuracy: 0 }
+  predictions.value = []
+  selectedIds.value = []
+  currentPreview.value = null
+  currentIndex.value = 0
+  models.value = []
+  pagination.value.itemCount = 0
+  resultStats.value = { total: 0, keep: 0, delete: 0, corrected: 0 }
+}
+
+async function initializeTaskView() {
+  await taskStore.fetchTask(props.taskId)
+  connectWebSocket()
+
+  if (!taskStore.currentTask || taskStore.currentTask.image_count === 0) {
+    await handleAutoScan()
+    return
+  }
+
+  await checkExtractStatus()
+  await loadLabelStats()
+  await loadPredictions()
+  if (labelStats.value.model_exists && predictions.value.length === 0) {
+    await handlePredict()
+  }
 }
 
 
@@ -596,7 +636,26 @@ async function loadPredictions() {
 
     recalculateStats()
 
-    // Auto-select first item
+    if (predictions.value.length === 0) {
+      currentPreview.value = null
+      currentIndex.value = 0
+    } else {
+      const previewIndex = currentPreview.value
+        ? predictions.value.findIndex((item) => item.file_id === currentPreview.value.file_id)
+        : -1
+
+      if (previewIndex >= 0) {
+        currentIndex.value = previewIndex
+        currentPreview.value = {
+          ...predictions.value[previewIndex],
+          thumbnail: getThumbnailUrl(predictions.value[previewIndex].file_id, imageVersion.value),
+        }
+      } else {
+        // Auto-select first item when the previous preview no longer belongs to the current result set.
+        currentPreview.value = null
+      }
+    }
+
     if (predictions.value.length > 0 && !currentPreview.value) {
       currentIndex.value = 0
       selectCurrent()
@@ -656,11 +715,12 @@ async function loadModels() {
 
 function showFullImage() {
   if (currentPreview.value) {
-    window.open(getThumbnailUrl(currentPreview.value.file_id).replace('/thumbnail', '/original'))
+    window.open(getPreviewOriginalUrl(currentPreview.value.file_id))
   }
 }
 
 function connectWebSocket() {
+  ws?.close()
   ws = connectTaskWs(props.taskId, (event, data) => {
     if (event === 'scan_start') {
       scanTotal.value = data.total

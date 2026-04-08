@@ -74,6 +74,7 @@ from api.logs import router as logs_router
 from api.ai import router as ai_router
 from api.exif import router as exif_router
 from api.gpx import router as gpx_router
+from api.empty_folders import router as empty_folders_router
 
 app.include_router(tasks_router)
 app.include_router(scan_router)
@@ -83,6 +84,7 @@ app.include_router(logs_router)
 app.include_router(ai_router)
 app.include_router(exif_router)
 app.include_router(gpx_router)
+app.include_router(empty_folders_router)
 
 
 # ── WebSocket ───────────────────────────────────────────────────────────────

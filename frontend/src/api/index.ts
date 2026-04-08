@@ -82,12 +82,22 @@ export const getGpxTrack = (taskId: number) =>
 export const getGpxStats = (taskId: number) =>
   api.get(`/tasks/${taskId}/gpx/stats`)
 
-// ── Files ──────────────────────────────────────────────────────────────────
-export const getThumbnailUrl = (fileId: number) =>
-  `/api/files/${fileId}/thumbnail`
+export const listEmptyFolders = (taskId: number) =>
+  api.get(`/tasks/${taskId}/empty-folders`)
 
-export const getOriginalUrl = (fileId: number) =>
-  `/api/files/${fileId}/original`
+export const deleteEmptyFolders = (taskId: number) =>
+  api.delete(`/tasks/${taskId}/empty-folders`)
+
+// ── Files ──────────────────────────────────────────────────────────────────
+export const getThumbnailUrl = (fileId: number, version?: string | number) =>
+  version === undefined
+    ? `/api/files/${fileId}/thumbnail`
+    : `/api/files/${fileId}/thumbnail?v=${encodeURIComponent(String(version))}`
+
+export const getOriginalUrl = (fileId: number, version?: string | number) =>
+  version === undefined
+    ? `/api/files/${fileId}/original`
+    : `/api/files/${fileId}/original?v=${encodeURIComponent(String(version))}`
 
 export const deleteByExtension = (taskId: number, extension: string) =>
   api.post(`/files/delete-by-extension/${taskId}`, { extension })

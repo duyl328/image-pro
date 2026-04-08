@@ -21,7 +21,9 @@ async def get_thumbnail(file_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "File not found")
     if not file.thumbnail_path or not Path(file.thumbnail_path).exists():
         raise HTTPException(404, "Thumbnail not available")
-    return FileResponse(file.thumbnail_path, media_type="image/jpeg")
+    response = FileResponse(file.thumbnail_path, media_type="image/jpeg")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @router.get("/{file_id}/original")
@@ -31,7 +33,9 @@ async def get_original(file_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "File not found")
     if not Path(file.file_path).exists():
         raise HTTPException(404, "Original file not found")
-    return FileResponse(file.file_path)
+    response = FileResponse(file.file_path)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 class DeleteByExtensionRequest(BaseModel):

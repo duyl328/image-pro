@@ -16,6 +16,7 @@ import {
   CopyOutline,
   TimeOutline,
   LocationOutline,
+  FolderOpenOutline,
   SparklesOutline,
   ListOutline,
 } from '@vicons/ionicons5'
@@ -28,18 +29,28 @@ const taskStore = useTaskStore()
 const appStore = useAppStore()
 
 const taskId = computed(() => taskStore.currentTask?.id)
+const labels = {
+  scan: '\u626b\u63cf\u6982\u89c8',
+  duplicates: '\u67e5\u91cd\u68c0\u6d4b',
+  exif: '\u65f6\u95f4/EXIF',
+  gpx: 'GPS \u5339\u914d',
+  emptyFolders: '\u7a7a\u6587\u4ef6\u5939',
+  ai: 'AI \u7b5b\u56fe',
+  logs: '\u64cd\u4f5c\u65e5\u5fd7',
+}
 
 function renderIcon(icon: any) {
   return () => h(NIcon, null, { default: () => h(icon) })
 }
 
 const menuOptions = computed(() => [
-  { label: '扫描概览', key: 'scan', icon: renderIcon(ScanOutline) },
-  { label: '查重检测', key: 'duplicates', icon: renderIcon(CopyOutline) },
-  { label: '时间/EXIF', key: 'exif', icon: renderIcon(TimeOutline) },
-  { label: 'GPS 匹配', key: 'gpx', icon: renderIcon(LocationOutline) },
-  { label: 'AI 筛图', key: 'ai', icon: renderIcon(SparklesOutline) },
-  { label: '操作日志', key: 'logs', icon: renderIcon(ListOutline), disabled: true },
+  { label: labels.scan, key: 'scan', icon: renderIcon(ScanOutline) },
+  { label: labels.duplicates, key: 'duplicates', icon: renderIcon(CopyOutline) },
+  { label: labels.exif, key: 'exif', icon: renderIcon(TimeOutline) },
+  { label: labels.gpx, key: 'gpx', icon: renderIcon(LocationOutline) },
+  { label: labels.emptyFolders, key: 'empty-folders', icon: renderIcon(FolderOpenOutline) },
+  { label: labels.ai, key: 'ai', icon: renderIcon(SparklesOutline) },
+  { label: labels.logs, key: 'logs', icon: renderIcon(ListOutline), disabled: true },
 ])
 
 const activeKey = computed(() => {
