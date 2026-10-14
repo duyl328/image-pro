@@ -32,3 +32,8 @@ build/
 data/image_pro.db
 data/thumbnails/
 data/models/
+
+# SQLite runtime sidecar files
+*.db-journal
+*.db-wal
+*.db-shm
